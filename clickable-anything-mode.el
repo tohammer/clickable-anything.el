@@ -59,9 +59,8 @@ This variable is buffer-local."
            function
            (choice (const :tag "Full match" 0) integer)
            (choice (const :tag "Default face" nil) face)))
+  :local t
   :group 'clickable-anything)
-
-(make-variable-buffer-local 'clickable-anything-alist)
 
 (defun clickable-anything--fallthrough ()
   "Call the original RET binding from the major mode."
@@ -87,13 +86,13 @@ This variable is buffer-local."
     (define-key m (kbd "RET") #'clickable-anything--fallthrough)
     (define-key m (kbd "C-c RET") #'clickable-anything--call-at-point)
     m)
-  "Keymap to hold goto-addr's mouse key defs under highlighted URLs.")
+  "Keymap active on clickable-anything overlays.")
 
 (defun clickable-anything--call-at-point (&optional event)
+  "Invoke the handler of the clickable overlay at point or at EVENT position."
   (interactive (list last-input-event))
-  ;; (interactive "e")
   (save-excursion
-    (if event (posn-set-point (event-end event)))
+    (when event (posn-set-point (event-end event)))
     (let ((fun (seq-find #'identity (seq-map
                                    (lambda (e) (overlay-get e 'clickable-anything))
                                    (overlays-at (point))))))
@@ -102,22 +101,21 @@ This variable is buffer-local."
 
 (defun clickable-anything--fontify-region (start end)
   "Apply clickable overlays between START and END."
-  (clickable-anything--unfontify (or start (point-min)) (or end (point-max)))
+  (clickable-anything--unfontify start end)
   (save-excursion
     (let ((case-fold-search nil))
       (dolist (entry clickable-anything-alist)
         (pcase-let ((`(,regexp ,handler ,group ,face) entry))
           (let ((group (or group 0))
                 (face (or face 'clickable-anything-face)))
-            (goto-char (or start (point-min)))
+            (goto-char start)
             (while (re-search-forward regexp end t)
               (let ((mb (match-beginning group))
                     (me (match-end group)))
                 (when (and mb me)
                   (let ((ov (make-overlay mb me nil nil nil))
                         (text (buffer-substring-no-properties mb me)))
-                    ;; Use face merge instead of replacement
-                    (overlay-put ov 'face `(:underline t :inherit ,(get-text-property mb 'face)))
+                    (overlay-put ov 'face face)
                     (overlay-put ov 'mouse-face 'highlight)
                     (overlay-put ov 'priority 100)
                     (overlay-put ov 'help-echo "mouse-2 or C-c RET: activate")
@@ -128,8 +126,8 @@ This variable is buffer-local."
 (defun clickable-anything--unfontify (start end)
   "Remove `clickable-anything' fontification from the given region."
   (dolist (overlay (overlays-in start end))
-    (if (overlay-get overlay 'clickable-anything)
-	(delete-overlay overlay))))
+    (when (overlay-get overlay 'clickable-anything)
+      (delete-overlay overlay))))
 
 ;;;###autoload
 (define-minor-mode clickable-anything-mode
@@ -146,11 +144,6 @@ Handlers receive the matched text."
     (save-restriction
       (widen)
       (clickable-anything--unfontify (point-min) (point-max))))))
-
-;;;###autoload
-(defun clickable-anything-mode-enable ()
-  "Enable `clickable-anything-mode`."
-  (clickable-anything-mode 1))
 
 (provide 'clickable-anything-mode)
 
