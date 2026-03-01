@@ -25,7 +25,9 @@
 ;;
 ;;   (REGEXP HANDLER &optional GROUP FACE)
 ;;
-;; HANDLER is called with the matched text.
+;; HANDLER is either a function called with the matched text, or an alist
+;; of (KEY-STRING . FUNCTION) pairs for per-key dispatch, e.g.:
+;;   '(("<mouse-2>" . browse-url) ("<mouse-3>" . kill-new))
 
 ;;; Code:
 
@@ -47,16 +49,21 @@ Each entry has the form:
 
   (REGEXP HANDLER &optional GROUP FACE)
 
-REGEXP  - regular expression
-HANDLER - function called with matched text
-GROUP   - submatch index (default 0)
-FACE    - face for overlay (default `clickable-anything-face`)
+REGEXP   - regular expression
+HANDLER  - either a function called with the matched text, or an alist of
+           (KEY-STRING . FUNCTION) pairs mapping key sequences to functions.
+           When an alist, each function is called with the matched text.
+           The first entry is used as the default action for \\[clickable-anything--call-at-point].
+           Example: ((\"<mouse-2>\" . #\\='browse-url) (\"<mouse-3>\" . #\\='kill-new))
+GROUP    - submatch index (default 0)
+FACE     - face for overlay (default `clickable-anything-face`)
 
 This variable is buffer-local."
   :type '(repeat
           (list
            regexp
-           function
+           (choice function
+                   (alist :key-type string :value-type function))
            (choice (const :tag "Full match" 0) integer)
            (choice (const :tag "Default face" nil) face)))
   :local t
@@ -80,22 +87,45 @@ This variable is buffer-local."
                for km in keymaps
                do (overlay-put o 'keymap km)))))
 
+(defvar clickable-anything-base-keymap
+  (let ((m (make-sparse-keymap)))
+    (define-key m (kbd "RET") #'clickable-anything--fallthrough)
+    m)
+  "Base keymap inherited by all clickable-anything overlay keymaps.
+Only provides RET fallthrough to the underlying major-mode binding.")
+
 (defvar clickable-anything-highlight-keymap
   (let ((m (make-sparse-keymap)))
+    (set-keymap-parent m clickable-anything-base-keymap)
     (define-key m (kbd "<mouse-2>") #'clickable-anything--call-at-point)
-    (define-key m (kbd "RET") #'clickable-anything--fallthrough)
     (define-key m (kbd "C-c RET") #'clickable-anything--call-at-point)
     m)
-  "Keymap active on clickable-anything overlays.")
+  "Keymap for clickable-anything overlays with a single-function handler.
+Adds mouse-2 and C-c RET as default activation keys on top of the base keymap.")
+
+(defun clickable-anything--make-keymap (handler text)
+  "Return an overlay keymap for HANDLER and matched TEXT.
+HANDLER is either a function or an alist of (KEY-STRING . FUNCTION) pairs.
+When a function, returns `clickable-anything-highlight-keymap' (mouse-2,
+C-c RET, RET fallthrough).  When an alist, builds a keymap inheriting only
+RET fallthrough, with each user-specified key bound to its function."
+  (if (functionp handler)
+      clickable-anything-highlight-keymap
+    (let ((m (make-sparse-keymap)))
+      (set-keymap-parent m clickable-anything-base-keymap)
+      (dolist (binding handler)
+        (let ((fn (cdr binding)))
+          (define-key m (kbd (car binding))
+            (lambda () (interactive) (funcall fn text)))))
+      m)))
 
 (defun clickable-anything--call-at-point (&optional event)
   "Invoke the handler of the clickable overlay at point or at EVENT position."
   (interactive (list last-input-event))
   (save-excursion
     (when event (posn-set-point (event-end event)))
-    (let ((fun (seq-find #'identity (seq-map
-                                   (lambda (e) (overlay-get e 'clickable-anything))
-                                   (overlays-at (point))))))
+    (let ((fun (seq-some (lambda (e) (overlay-get e 'clickable-anything))
+                         (overlays-at (point)))))
       (when fun
         (funcall fun)))))
 
@@ -113,16 +143,17 @@ This variable is buffer-local."
               (let ((mb (match-beginning group))
                     (me (match-end group)))
                 (when (and mb me)
-                  (let ((ov (make-overlay mb me nil nil nil))
-                        (text (buffer-substring-no-properties mb me)))
+                  (let* ((text (buffer-substring-no-properties mb me))
+                         (default-fn (if (functionp handler) handler (cdar handler)))
+                         (ov (make-overlay mb me)))
                     (overlay-put ov 'face face)
                     (overlay-put ov 'mouse-face 'highlight)
                     (overlay-put ov 'priority 100)
-                    (overlay-put ov 'help-echo "mouse-2 or C-c RET: activate")
-                    (overlay-put ov 'clickable-anything (lambda () (funcall handler text)))
-                    (overlay-put ov 'keymap clickable-anything-highlight-keymap)
+                    (overlay-put ov 'help-echo "click to activate")
+                    (overlay-put ov 'clickable-anything (lambda () (funcall default-fn text)))
+                    (overlay-put ov 'keymap (clickable-anything--make-keymap handler text))
                     (overlay-put ov 'evaporate t)))))))))))
-                  
+
 (defun clickable-anything--unfontify (start end)
   "Remove `clickable-anything' fontification from the given region."
   (dolist (overlay (overlays-in start end))
