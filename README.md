@@ -11,10 +11,26 @@ A minor mode for Emacs that makes any text matching a regexp clickable. Similar 
 
 ## Installation
 
-Place `clickable-anything-mode.el` on your `load-path` and require it:
+### use-package
 
 ```elisp
-(require 'clickable-anything-mode)
+(use-package clickable-anything-mode
+  :ensure t
+  :commands clickable-anything-mode)
+```
+
+### Doom Emacs
+
+In `packages.el`:
+
+```elisp
+(package! clickable-anything-mode)
+```
+
+In `config.el`:
+
+```elisp
+(use-package! clickable-anything-mode)
 ```
 
 ## Configuration
@@ -49,6 +65,30 @@ Per-key dispatch:
      (("<mouse-2>" . browse-url)
       ("<mouse-3>" . kill-new)))))
 ```
+
+Pull request references (e.g. `(#123)` in commit messages):
+
+```elisp
+(defun my/open-pr (number)
+  "Open pull request NUMBER in the browser."
+  (browse-url (format "https://github.com/my-org/my-repo/pull/%s" number)))
+
+(defun my/show-pr-info (number)
+  "Show information about pull request NUMBER."
+  (message "PR #%s — fetch info here" number))
+
+(defvar my/clickable-pr
+  `(,(rx " (#" (group (+ num)) ")")
+    (("C-c RET"   . my/show-pr-info)
+     ("<mouse-2>" . my/show-pr-info)
+     ("C-c C-o"   . my/open-pr)
+     ("<mouse-3>" . my/open-pr))
+    1))  ; submatch 1 captures the number only
+
+(setq clickable-anything-alist (list my/clickable-pr))
+```
+
+The `1` at the end selects submatch group 1 (just the number, without the surrounding parentheses), which is what gets passed to the handler functions.
 
 Enable the mode:
 
