@@ -79,6 +79,10 @@ Enable the mode:
 (add-hook 'magit-revision-mode-hook #'clickable-anything-mode)
 ```
 
+## License
+
+GPL-3.0-or-later. See [LICENSE](LICENSE).
+
 ## AI Disclaimer
 
 This package was developed with the help of AI coding agents.
