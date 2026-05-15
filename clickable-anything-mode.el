@@ -55,7 +55,10 @@ HANDLER  - either a function called with the matched text, or an alist of
            When an alist, each function is called with the matched text.
            The first entry is used as the default action for \\[clickable-anything--call-at-point].
            Example: ((\"<mouse-2>\" . #\\='browse-url) (\"<mouse-3>\" . #\\='kill-new))
-GROUP    - submatch index (default 0)
+GROUP    - submatch index (default 0), or a list of indices tried in order —
+           the first group with a non-nil match is used.  Useful when a regex
+           uses alternation and each branch has its own capture group.
+           Example: (1 2) tries group 1 first, then group 2.
 FACE     - face for overlay (default `clickable-anything-face`)
 
 This variable is buffer-local."
@@ -64,7 +67,9 @@ This variable is buffer-local."
            regexp
            (choice function
                    (alist :key-type string :value-type function))
-           (choice (const :tag "Full match" 0) integer)
+           (choice (const :tag "Full match" 0)
+                   integer
+                   (repeat :tag "Try groups in order" integer))
            (choice (const :tag "Default face" nil) face)))
   :local t
   :group 'clickable-anything)
@@ -136,12 +141,17 @@ RET fallthrough, with each user-specified key bound to its function."
     (let ((case-fold-search nil))
       (dolist (entry clickable-anything-alist)
         (pcase-let ((`(,regexp ,handler ,group ,face) entry))
-          (let ((group (or group 0))
+          (let ((groups (cond ((null group)   '(0))
+                              ((listp group)  group)
+                              (t              (list group))))
                 (face (or face 'clickable-anything-face)))
             (goto-char start)
             (while (re-search-forward regexp end t)
-              (let ((mb (match-beginning group))
-                    (me (match-end group)))
+              (let* ((active (seq-find (lambda (g)
+                                         (and (match-beginning g) (match-end g)))
+                                       groups))
+                     (mb (when active (match-beginning active)))
+                     (me (when active (match-end active))))
                 (when (and mb me)
                   (let* ((text (buffer-substring-no-properties mb me))
                          (default-fn (if (functionp handler) handler (cdar handler)))
