@@ -1,21 +1,14 @@
 # clickable-anything-mode
 
-A minor mode for Emacs that makes any text matching a regexp clickable. Similar to `goto-address-mode`, but fully user-configurable.
-
-## Features
-
-- Highlight and click any text matching a regexp
-- Assign different actions to different keys or mouse buttons per regexp
-- Configure independently in each buffer
-- Control how matches look with a custom face per regexp
+Minor mode that makes any regexp-matched text clickable via overlays. Similar to `goto-address-mode` but fully configurable per buffer.
 
 ## Installation
 
-### use-package
+### use-package (Emacs 29+)
 
 ```elisp
 (use-package clickable-anything-mode
-  :ensure t
+  :vc (:url "https://github.com/tohammer/clickable-anything.el")
   :commands clickable-anything-mode)
 ```
 
@@ -24,7 +17,8 @@ A minor mode for Emacs that makes any text matching a regexp clickable. Similar 
 In `packages.el`:
 
 ```elisp
-(package! clickable-anything-mode)
+(package! clickable-anything-mode
+  :recipe (:host github :repo "tohammer/clickable-anything.el"))
 ```
 
 In `config.el`:
@@ -41,63 +35,50 @@ Each entry in `clickable-anything-alist` has the form:
 (REGEXP HANDLER &optional GROUP FACE)
 ```
 
-`HANDLER` is either:
-- A **function** called with the matched text — mouse-2 and `C-c RET` activate it by default.
-- An **alist** of `("KEY" . FUNCTION)` pairs — each key invokes its function with the matched text. No default keys are added; only `RET` falls through to the major mode.
+- **REGEXP** — regular expression to match
+- **HANDLER** — a function called with the matched text, or an alist of `("KEY" . FUNCTION)` pairs for per-key dispatch. When a function, `<mouse-2>` and `C-c RET` activate it. When an alist, only `RET` falls through to the major mode.
+- **GROUP** — submatch index (default 0). Can be a list of indices — the first with a non-nil match is used. Useful when alternating branches each have their own group, e.g. `(1 2)`.
+- **FACE** — overlay face (default `clickable-anything-face`, underlined).
 
-`GROUP` is the regexp submatch index (default 0, i.e. the full match).  
-`FACE` is the overlay face (default `clickable-anything-face`, which underlines).
+`clickable-anything-alist` is buffer-local; set it with `setq-local` or via a mode hook.
 
 ### Examples
 
-Single handler:
+Single handler (URL):
 
 ```elisp
-(setq clickable-anything-alist
-  `(("https?://[^ \t\n]+" #'browse-url)))
+(setq-local clickable-anything-alist
+  '(("https?://[^ \t\n]+" browse-url)))
 ```
 
-Per-key dispatch:
+Per-key dispatch with submatch:
 
 ```elisp
-(setq clickable-anything-alist
-  `(("https?://[^ \t\n]+"
-     (("<mouse-2>" . browse-url)
-      ("<mouse-3>" . kill-new)))))
+(setq-local clickable-anything-alist
+  `((,(rx "(#" (group (+ num)) ")")
+     (("<mouse-2>" . my/open-pr)
+      ("<mouse-3>" . my/copy-pr))
+     1)))
 ```
 
-Pull request references (e.g. `(#123)` in commit messages):
+Alternating groups (e.g. `[TICKET-1]` or `Issue: TICKET-1`):
 
 ```elisp
-(defun my/open-pr (number)
-  "Open pull request NUMBER in the browser."
-  (browse-url (format "https://github.com/my-org/my-repo/pull/%s" number)))
-
-(defun my/show-pr-info (number)
-  "Show information about pull request NUMBER."
-  (message "PR #%s — fetch info here" number))
-
-(defvar my/clickable-pr
-  `(,(rx " (#" (group (+ num)) ")")
-    (("C-c RET"   . my/show-pr-info)
-     ("<mouse-2>" . my/show-pr-info)
-     ("C-c C-o"   . my/open-pr)
-     ("<mouse-3>" . my/open-pr))
-    1))  ; submatch 1 captures the number only
-
-(setq clickable-anything-alist (list my/clickable-pr))
+(setq-local clickable-anything-alist
+  `((,(rx (or (seq "[" (group (+ (in "A-Z")) "-" (+ num)) "]")
+             (seq "Issue:" (* " ") (group (+ (in "A-Z")) "-" (+ num)))))
+     my/open-ticket
+     (1 2))))
 ```
-
-The `1` at the end selects submatch group 1 (just the number, without the surrounding parentheses), which is what gets passed to the handler functions.
 
 Enable the mode:
 
 ```elisp
 (clickable-anything-mode 1)
+;; or via hook:
+(add-hook 'magit-revision-mode-hook #'clickable-anything-mode)
 ```
 
-To enable it automatically in a specific mode:
+## AI Disclaimer
 
-```elisp
-(add-hook 'text-mode-hook #'clickable-anything-mode)
-```
+This package was developed with the help of AI coding agents.

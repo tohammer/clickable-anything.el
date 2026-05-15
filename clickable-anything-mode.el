@@ -1,33 +1,29 @@
 ;;; clickable-anything-mode.el --- Configurable clickable regexps via overlays -*- lexical-binding: t; -*-
 
-;; Author: Tobias Hammer
-;; Maintainer: Tobias Hammer
+;; Author: Tobias Hammer <tohammer@users.noreply.github.com>
+;; Maintainer: Tobias Hammer <tohammer@users.noreply.github.com>
 ;; Version: 0.1
 ;; Package-Requires: ((emacs "28.1") (seq "2.24"))
 ;; Keywords: convenience, mouse, links
-;; URL: https://github.com/yourname/clickable-anything
+;; URL: https://github.com/tohammer/clickable-anything.el
 ;; SPDX-License-Identifier: MIT
 
 ;;; Commentary:
 
-;; clickable-anything-mode is a minor mode similar to goto-address-mode,
-;; but configurable via regex/handler pairs and implemented using overlays.
+;; Minor mode that makes any regexp-matched text clickable via overlays.
+;; Similar to goto-address-mode but fully user-configurable per buffer.
 ;;
-;; Features:
-;;  - Lazy highlighting using jit-lock
-;;  - Overlay-based (safe with font-lock modes)
-;;  - Match group support
-;;  - Buffer-local configuration
-;;  - Mouse and keyboard activation
-;;  - MELPA-ready
-;;
-;; Configuration entries:
+;; Each entry in `clickable-anything-alist' has the form:
 ;;
 ;;   (REGEXP HANDLER &optional GROUP FACE)
 ;;
 ;; HANDLER is either a function called with the matched text, or an alist
 ;; of (KEY-STRING . FUNCTION) pairs for per-key dispatch, e.g.:
 ;;   '(("<mouse-2>" . browse-url) ("<mouse-3>" . kill-new))
+;;
+;; GROUP is the submatch index (default 0).  It can also be a list of
+;; indices — the first one with a non-nil match is used.  This is useful
+;; when a regexp uses alternation and each branch has its own group.
 
 ;;; Code:
 
