@@ -1,5 +1,7 @@
 # clickable-anything-mode
 
+[![test](https://github.com/tohammer/clickable-anything.el/actions/workflows/test.yml/badge.svg)](https://github.com/tohammer/clickable-anything.el/actions/workflows/test.yml)
+
 Minor mode that makes any regexp-matched text clickable via overlays. Similar to `goto-address-mode` or `bug-reference-mode`, but you choose the regexps, the handler functions and the keys, per buffer.
 
 Typical uses: open pull-request numbers like `(#123)` or ticket IDs like `ABC-42` in a browser from magit, or jump to `file:line` locations in a compilation buffer.
