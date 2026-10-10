@@ -10,7 +10,8 @@ compile:
 	  -f batch-byte-compile clickable-anything-mode.el
 
 checkdoc:
-	$(BATCH) --eval '(checkdoc-file "clickable-anything-mode.el")'
+	$(BATCH) --eval '(checkdoc-file "clickable-anything-mode.el")' \
+	  --eval '(when (get-buffer "*Warnings*") (kill-emacs 1))'
 
 test:
 	$(BATCH) -l test/clickable-anything-mode-test.el -f ert-run-tests-batch-and-exit
