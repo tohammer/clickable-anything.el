@@ -1,0 +1,21 @@
+name: test
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        emacs: ["28.2", "30.2", "31.1"]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: purcell/setup-emacs@v8
+        with:
+          version: ${{ matrix.emacs }}
+      - name: Compile, checkdoc, test
+        run: make all
