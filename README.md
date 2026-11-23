@@ -6,6 +6,8 @@ Minor mode that makes any regexp-matched text clickable via overlays. Similar to
 
 Typical uses: open pull-request numbers like `(#123)` or ticket IDs like `ABC-42` in a browser from magit, or jump to `file:line` locations in a compilation buffer.
 
+[![Middle-clicking an Info reference, file:line locations and a pull-request number in a text buffer (click for the full-size demo)](docs/demo-thumb.gif)](docs/demo.gif)
+
 ## Quick start
 
 After installing (see below), add this to your init file, then open any `text-mode` buffer containing a URL and middle-click it:
